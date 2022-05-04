@@ -1,0 +1,153 @@
+
+************************************************************************************************
+*- Acceso unidades de Rede
+************************************************************************************************
+IP			 Senha
+192.168.0.99		 35236164*a
+
+
+************************************************************************************************
+*- Configuraçâo para IP Externa
+************************************************************************************************
+IP Versâo 4			Panda		
+192.168.0.218			192.168.50.179
+255.255.255.0
+192.168.0.254
+
+DNS
+8.8.8.8
+8.8.4.4
+
+************************************************************************************************
+* 	Muestra cuantos computadores estan con el nro de Sotware instalado
+************************************************************************************************
+
+select * from tblSysTerminais where ID_Software = 1
+
+
+************************************************************************************************
+*- Aceso Ediçao dos relatorios CES ADM
+************************************************************************************************
+   Usuario: 	barbara.pacheco
+   Senha: 	bar1800
+
+*- Senha Tecnico CES ADM
+   Senha: 	60620
+
+************************************************************************************************ 
+*- VARIABLE DE AMBIENTES
+************************************************************************************************
+	JAVA_HOME C:\Program Files\Java\jdk1.8.0_241
+*- http://192.168.0.135:8090/
+	william.molina@csistemas.com.br
+	149225
+
+*- Configuracion de PROXY.CONFIG.TS para que la app OS ejecute las sentencias SQL desde el servidor local
+	cambiar en la line 16
+   		Original:  target: "http://192.168.0.135:85",
+		Cambiar por:  target: "http://localhost:5005",
+
+*- Link: http://cac.databi.com.br/login_page.php
+	Usuário: william.molina Senha: 149225
+
+*- Link: http://ceskb.databi.com.br:8087/wp-admin
+	Usuário: willian Senha: cs2040
+
+	Esses são os documentos criado até o momento sobre Report:
+		http://ceskb.databi.com.br:8087/personalizar-relatorio-passo-iniciais/
+		http://ceskb.databi.com.br:8087/manutencao-de-relatorios-editar/
+		http://ceskb.databi.com.br:8087/edicao-de-filtros/
+		http://ceskb.databi.com.br:8087/design-do-relatorio/
+
+************************************************************************************************
+*- 	Buscar valor en qualquer tabela da base de dados
+************************************************************************************************
+CREATE PROC BuscaValorEnBBDD
+(
+@StrValorBusqueda nvarchar(100)
+)
+AS
+BEGIN
+
+CREATE TABLE #Resultado (NombreColumna nvarchar(370), ValorColumna nvarchar(3630))
+SET NOCOUNT ON
+
+DECLARE @NombreTabla nvarchar(256),
+@NombreColumna nvarchar(128),
+@StrValorBusqueda2 nvarchar(110)
+
+SET  @NombreTabla = ''
+SET @StrValorBusqueda2 = QUOTENAME('%' + @StrValorBusqueda + '%','''')
+
+WHILE @NombreTabla IS NOT NULL
+     BEGIN
+     SET @NombreColumna = ''
+     SET @NombreTabla =
+     (SELECT MIN(QUOTENAME(TABLE_SCHEMA) + '.' + QUOTENAME(TABLE_NAME))
+     FROM INFORMATION_SCHEMA.TABLES
+     WHERE TABLE_TYPE = 'BASE TABLE'
+     AND QUOTENAME(TABLE_SCHEMA) + '.' + QUOTENAME(TABLE_NAME) > @NombreTabla
+     AND OBJECTPROPERTY(
+     OBJECT_ID(QUOTENAME(TABLE_SCHEMA) + '.' + QUOTENAME(TABLE_NAME)), 'IsMSShipped') = 0)
+
+     WHILE (@NombreTabla IS NOT NULL) AND (@NombreColumna IS NOT NULL)
+         BEGIN
+         SET @NombreColumna =
+         (SELECT MIN(QUOTENAME(COLUMN_NAME))
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = PARSENAME(@NombreTabla, 2)
+         AND TABLE_NAME = PARSENAME(@NombreTabla, 1)
+         AND DATA_TYPE IN ('char', 'varchar', 'nchar', 'nvarchar')
+         AND QUOTENAME(COLUMN_NAME) > @NombreColumna)
+
+         IF @NombreColumna IS NOT NULL
+              BEGIN
+              INSERT INTO #Resultado
+              EXEC
+              ('SELECT ''' + @NombreTabla + '.' + @NombreColumna + ''', LEFT(' + @NombreColumna + ', 3630)
+              FROM ' + @NombreTabla + ' (NOLOCK) ' + ' WHERE ' + @NombreColumna + ' LIKE ' + @StrValorBusqueda2)
+              END 
+         END
+     END
+     SELECT NombreColumna, ValorColumna FROM #Resultado
+END
+
+
+Se ejecutas de la sig. forma:
+
+EXEC ces_adm_06.dbo.BuscaValorEnBBDD 'texto'
+
+
+************************************************************************
+	Pesquisar uma coluna em todas as tabelas do banco
+************************************************************************
+
+SELECT
+    T.name AS Tabela,
+    C.name AS Coluna
+FROM
+    sys.sysobjects    AS T (NOLOCK) INNER JOIN sys.all_columns AS C (NOLOCK) ON
+		T.id = C.object_id AND T.XTYPE = 'U'
+WHERE
+    C.NAME LIKE '%NomeDoCampo%'
+ORDER BY
+    T.name ASC
+
+
+-------------------------------------------------------------------------
+
+SELECT	
+	DISTINCT  TABLE_NAME AS TABELA,
+	COLUMN_NAME AS COLUNA
+FROM	
+	INFORMATION_SCHEMA.columns
+	WHERE COLUMN_NAME LIKE '%NomeDoCampo%'
+ORDER BY
+	table_name ASC
+
+
+************************************************************************
+	Decodificar informacion de usuarios
+************************************************************************
+	
+select dbo.descriptografa(DS_Senha),dbo.descriptografa(NM),  * from tblUsuarios
